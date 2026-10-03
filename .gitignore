@@ -1,9 +1,12 @@
+# Installed packages and generated frontend build/typecheck output.
 frontend/node_modules/
 frontend/.next/
 *.tsbuildinfo
+# Local Python environment and compiled Python caches.
 backend/.venv/
 __pycache__/
 *.py[cod]
+# Ignore local configuration but share the example template.
 .env
 .env.*
 !.env.example

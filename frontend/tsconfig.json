@@ -1,20 +1,23 @@
 {
+  // TypeScript configuration accepts comments (unlike package.json).
   "compilerOptions": {
+    // Support browser APIs and modern JavaScript. Next.js generates runnable code.
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
+    "strict": true, // Check types and unsafe null/undefined usage.
+    "noEmit": true, // TypeScript checks; Next.js builds the runnable output.
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
+    "jsx": "react-jsx", // Understand the HTML-like JSX in .tsx files.
     "incremental": true,
     "plugins": [{ "name": "next" }]
   },
+  // Check our source and the framework's generated type declarations.
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
   "exclude": ["node_modules"]
 }

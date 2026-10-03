@@ -1,3 +1,4 @@
+/* Page-wide defaults: remove the browser margin and set colors and text style. */
 body {
   margin: 0;
   background: #f7f8fa;
@@ -6,12 +7,14 @@ body {
   line-height: 1.6;
 }
 
+/* Keep content readable, centered, and away from the screen edges. */
 main {
   max-width: 640px;
   margin: 64px auto;
   padding: 0 24px;
 }
 
+/* Appearance for all three buttons. These rules do not handle clicks. */
 button {
   padding: 10px 18px;
   border: 0;
@@ -22,11 +25,13 @@ button {
   cursor: pointer;
 }
 
+/* Applied when a button's HTML disabled attribute is true. */
 button:disabled {
   opacity: 0.65;
   cursor: wait;
 }
 
+/* Make keyboard focus visible, for example when the user presses Tab. */
 button:focus-visible {
   outline: 3px solid #185b45;
   outline-offset: 3px;

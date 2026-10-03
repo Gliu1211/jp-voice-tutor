@@ -1,2 +1,4 @@
+# HTTP routing, JSON responses, and automatic API documentation.
 fastapi==0.141.1
+# Server that listens for requests and runs the FastAPI app.
 uvicorn==0.53.0

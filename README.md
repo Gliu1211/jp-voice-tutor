@@ -1,7 +1,12 @@
 # Japanese Voice Trainer
 
-Milestone 1: a Next.js + TypeScript page calls a Python + FastAPI backend.
-This starter contains no AI, audio, database, or learner model.
+Current progress: a Next.js + TypeScript page calls Python + FastAPI for a Japanese
+greeting. Browser microphone Start/Stop handlers exist; microphone status and button
+guards are unfinished. There is no AI connection, audio recording/transmission,
+database, or learner model yet.
+
+Read [the current code walkthrough](CODE_WALKTHROUGH.md) alongside the explanatory
+comments in the source. It maps each file to its role and describes both button flows.
 
 ## Repository location
 
@@ -76,16 +81,16 @@ done on this machine. Do not overwrite an edited `.env.local` on every startup.
 `npm.cmd` avoids the PowerShell script execution-policy issue some Windows setups
 have with `npm.ps1`.
 
-Open <http://localhost:3000>, then click **Check backend**. You should see
-**FastAPI is running!**. Stop either server with Ctrl+C in its terminal.
+Open <http://localhost:3000>, then click **Greetings**. You should see
+**こんにちは！**. Stop either server with Ctrl+C in its terminal.
 
 ## Understand the request
 
 ```text
 Browser at localhost:3000
   -> button calls checkBackend()
-  -> GET http://127.0.0.1:8000/health
-  -> FastAPI runs health() and serializes its dictionary as JSON
+  -> GET http://127.0.0.1:8000/greeting
+  -> FastAPI runs greeting() and serializes its dictionary as JSON
   -> browser parses JSON and calls setMessage(data.message)
   -> React updates the displayed text
 ```
@@ -149,7 +154,7 @@ but their transitive dependencies are not fully locked yet, an MVP simplificatio
 
 From `frontend`, run `npm.cmd run build` and `npm.cmd run typecheck` to check
 compilation and types. To inspect the actual integration, use your browser's
-Network panel, click the button, and inspect the `/health` request and JSON response.
+Network panel, click the button, and inspect the `/greeting` request and JSON response.
 
 - If `/health` does not open directly, check the backend terminal first.
 - If `/health` opens but the page fails, check the browser console for CORS and
