@@ -33,6 +33,8 @@ export default function Home() {
 
   // React calls this handler when the user clicks the microphone Start button.
   async function startButton() {
+    if (micStatus !== "idle") return; 
+    setMicStatus("requesting")
     try {
       // navigator is a browser API. Request microphone audio, without camera video.
       // await waits for permission/device access without blocking the browser UI.
@@ -44,10 +46,13 @@ export default function Home() {
       console.log("Microphone access granted:", localStream);
 
       // TODO: mark the mic active and display success on the page.
+      setMicStatus("active")
+      setMessage("Success")
       // This code does not record a file or send audio to our Python backend.
     } catch (error) {
       // Permission denial or an unavailable device can land here.
       // TODO: show the error on the page as well as in the developer console.
+      setMessage("error")
       console.log("error: " + error);
     }
     // TODO: prevent another Start while permission is pending or a stream is active.
@@ -70,6 +75,7 @@ export default function Home() {
       // Update the shared status paragraph and schedule a React render.
       setMessage("Microphone stopped.");
       // TODO: reset micStatus to "idle" when you implement its transitions.
+      setMicStatus("idle")
     }
   }
 
@@ -130,12 +136,15 @@ export default function Home() {
 
       {/* startButton() below is visible text because it is outside curly braces. */}
       {/* TODO: choose readable labels and use micStatus to disable these buttons. */}
-      <button onClick={startButton}>
-        startButton()
+      <button onClick={startButton} 
+      disabled={micStatus === "requesting" || micStatus === "active"}>
+       
+        Start Microphone
       </button>
 
-      <button onClick={stopButton}>
-        stopButton()
+      <button onClick={stopButton}
+        disabled={micStatus !== "active"}>
+        Stop Microphone
       </button>
 
       {/* Both features currently write to this shared message. */}
