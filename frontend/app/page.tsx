@@ -52,7 +52,8 @@ export default function Home() {
     } catch (error) {
       // Permission denial or an unavailable device can land here.
       // TODO: show the error on the page as well as in the developer console.
-      setMessage("error")
+      setMessage("Could not access the microphone. Check microphone permission")
+      setMicStatus("idle")
       console.log("error: " + error);
     }
     // TODO: prevent another Start while permission is pending or a stream is active.
