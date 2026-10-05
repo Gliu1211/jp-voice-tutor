@@ -1,8 +1,8 @@
 # Japanese Voice Trainer
 
 Current progress: a Next.js + TypeScript page calls Python + FastAPI for a Japanese
-greeting. Browser microphone Start/Stop handlers exist; microphone status and button
-guards are unfinished. There is no AI connection, audio recording/transmission,
+greeting. Browser microphone Start/Stop handlers include status, button guards,
+error feedback, and cleanup when the component is removed. There is no AI connection, audio recording/transmission,
 database, or learner model yet.
 
 Read [the current code walkthrough](CODE_WALKTHROUGH.md) alongside the explanatory

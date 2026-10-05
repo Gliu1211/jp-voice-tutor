@@ -3,7 +3,7 @@
 "use client";
 
 // Hooks let React retain values when it calls Home() again to update the page.
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect} from "react";
 
 // Next.js loads this public backend address from frontend/.env.local.
 // NEXT_PUBLIC_ values are visible in the browser, so never use them for secret keys.
@@ -30,27 +30,50 @@ export default function Home() {
   // MediaStream | null means a stream or nothing yet.
   // Changing .current does not trigger a render, but the container survives renders.
   const localStream = useRef<MediaStream | null>(null);
+  //add ref to see if component is moounte
+  const permission = useRef(true)
+  useEffect(() => { 
+    permission.current = true
+    return () => { 
+      permission.current = false
+      if (localStream.current) { 
+        localStream.current.getTracks().forEach(track => track.stop())
+        localStream.current = null;
+      }
 
+      
+    };
+  }, []);
   // React calls this handler when the user clicks the microphone Start button.
   async function startButton() {
+
+    
     if (micStatus !== "idle") return; 
     setMicStatus("requesting")
     try {
       // navigator is a browser API. Request microphone audio, without camera video.
       // await waits for permission/device access without blocking the browser UI.
       // Save the stream so the Stop handler can access its tracks later.
-      localStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-
+const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // This logs the ref container in browser developer tools, not on the page.
       // Log localStream.current to inspect just the actual stream.
       console.log("Microphone access granted:", localStream);
+
+      if (!permission.current) {
+   stream.getTracks().forEach((track) => track.stop());
+    return;
+      }
+
+
+      localStream.current = stream
 
       // TODO: mark the mic active and display success on the page.
       setMicStatus("active")
       setMessage("Success")
       // This code does not record a file or send audio to our Python backend.
     } catch (error) {
-      // Permission denial or an unavailable device can land here.
+      if (!permission.current) return; 
+      // Permission denial or  an unavailable device can land here.
       // TODO: show the error on the page as well as in the developer console.
       setMessage("Could not access the microphone. Check microphone permission")
       setMicStatus("idle")
@@ -79,6 +102,8 @@ export default function Home() {
       setMicStatus("idle")
     }
   }
+  
+
 
   // Despite its original name, this handler now requests your /greeting endpoint.
   async function checkBackend() {

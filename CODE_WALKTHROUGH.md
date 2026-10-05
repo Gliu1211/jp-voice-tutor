@@ -24,8 +24,8 @@ Next.js can prepare initial HTML on the server. The `"use client"` directive
 allows this page's interactive code to run in the browser.
 
 Declaring a function does not automatically run it. `onClick={startButton}` gives
-React the function to call on a click. The text `startButton()` between the opening
-and closing button tags is just a label; it does not execute the function.
+React the function to call on a click. The text between the opening and closing
+button tags is a label; it does not execute the function.
 
 ## Clicking Greetings
 
@@ -49,7 +49,8 @@ The allowed origin in Python permits the browser page to read the API response.
 Start calls the browser's `getUserMedia` API and waits for microphone access.
 It saves the resulting `MediaStream` in `localStream.current`. This handler does
 not call Python, save an audio file, or establish a voice-model connection.
-Start success/failure is currently only logged in browser developer tools.
+Start success/failure is displayed in a dedicated microphone status paragraph.
+Greeting responses use a separate paragraph, so they cannot overwrite mic feedback.
 
 Stop gets the saved stream's tracks, calls `stop()` on each one, clears the reference,
 and displays Microphone stopped. Clearing the reference without stopping the tracks
@@ -65,11 +66,15 @@ React calls `Home()` again when state changes and updates the rendered page.
 Changing `.current` does not schedule a render. The stream is needed by event handlers;
 state supplies values that determine what the page displays.
 
-`micStatus` is currently initialized to idle inside `Home()` but is not used yet.
-It will eventually represent idle, requesting permission, and active. It currently
-does not disable microphone buttons or display a microphone status.
-Repeated Starts can overwrite the stored stream and leave an earlier one running.
-Releasing capture when the component is removed is also a later cleanup task.
+Your `micStatus` transitions are now idle -> requesting -> active on success, and
+requesting -> idle on failure. Stop changes active -> idle. Start is enabled only
+while idle; Stop is enabled only while active.
+
+`useEffect` registers a cleanup function that stops any retained microphone tracks
+when the component is removed. `isMounted.current` remembers whether the component
+is still present. If microphone permission finishes after removal, the Start handler
+stops the returned stream immediately instead of keeping an orphaned microphone active.
+The effect's empty dependency array means greeting/status updates do not rerun it.
 
 In the October 1 annotation pass, Codex moved `micStatus` from outside `Home()`
 into the component: React hooks cannot be called at module scope. The remaining
@@ -98,8 +103,9 @@ installed/generated files. They are not extra features you have to implement.
 
 ## Current checkpoint
 
-The greeting request and microphone Start/Stop handlers exist. Mic state transitions,
-button guards, visible Start/error feedback, and component-removal cleanup are unfinished.
+The greeting request, microphone state transitions, button guards, visible feedback,
+and component-removal cleanup are implemented. You wrote the status transitions and
+button guards; Codex added cleanup, late-result handling, and separate microphone feedback.
 There is no AI, transcript, audio recording/transmission, database, or learner model yet.
 
 Before adding another feature, trace this path through the commented source:
