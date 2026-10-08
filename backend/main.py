@@ -1,5 +1,6 @@
 # FastAPI maps HTTP requests to Python functions and builds JSON responses.
 from fastapi import FastAPI
+from pydantic import BaseModel 
 # Middleware runs around request handling; this one supplies browser CORS headers.
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,9 +14,20 @@ app = FastAPI(title="Japanese Voice Trainer")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"]
 )
+# 
+class SessionOffer(BaseModel):
+    sdp:str  
 
+
+
+@app.post("/session")
+def session(offer: SessionOffer):
+    return {
+        "message": "Offer received",
+        "sdp_length": len(offer.sdp) }
 
 # The decorator registers health() as the handler for GET /health.
 @app.get("/health")

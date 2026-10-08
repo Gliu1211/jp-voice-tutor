@@ -86,17 +86,46 @@ export default function Home() {
       });
 
       const offer = await pc.createOffer()
-      if (!permission.current) return 
+      if (!permission.current) return
       await pc.setLocalDescription(offer)
       if (!permission.current) return
-      console.log(offer.type)
-      console.log(offer.sdp)
-      console.log("SON")
-      setMicStatus("active")
-      setMessage("Success")
+
+      const response = await fetch(`${apiUrl}/session`, {
+
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ sdp: offer.sdp })
+
+      })
+
+      if (!response.ok) {
+        throw new Error(`POST failed ${response.status}`)
+      }
+
+      const data = await response.json();
+
+      if (!permission.current) return;
+
+      console.log(offer.type);
+      console.log(offer.sdp);
+
+      if (
+        typeof data?.message !== "string" ||
+        typeof data?.sdp_length !== "number"
+      ) {
+        throw new Error("Invalid session response");
+      }
+
+      setMicStatus("active");
+      setMessage(`${data.message} — SDP length: ${data.sdp_length}`);
+
       // This code does not record a file or send audio to our Python backend.
     } catch (error) {
+
       
+
       // Permission denial or  an unavailable device can land here.
       if (localStream.current) {
         localStream.current.getTracks().forEach(track => track.stop())
@@ -105,7 +134,7 @@ export default function Home() {
       peerConnection.current?.close()
       peerConnection.current = null
 
-if (!permission.current) return;
+      if (!permission.current) return;
       setMessage("Could not access the microphone. Check microphone permission")
       setMicStatus("idle")
       console.log("error: " + error);
@@ -136,7 +165,7 @@ if (!permission.current) return;
 
     // Update the shared status paragraph and schedule a React render.
     setMessage("Microphone stopped.");
-    // TODO: reset micStatus to "idle" when you implement its transitions.
+
     setMicStatus("idle")
   }
 
@@ -190,7 +219,7 @@ if (!permission.current) return;
   return (
     <main>
       <h1>Japanese Voice Trainer</h1>
-      <p>Milestone 1: connect the frontend to the Python backend.</p>
+
 
       {/* Pass the handler to onClick. checkBackend() would call it during render. */}
       <button onClick={checkBackend} disabled={isLoading}>
