@@ -3,7 +3,7 @@
 "use client";
 
 // Hooks let React retain values when it calls Home() again to update the page.
-import { useState, useRef, useEffect} from "react";
+import { useState, useRef, useEffect } from "react";
 
 // Next.js loads this public backend address from frontend/.env.local.
 // NEXT_PUBLIC_ values are visible in the browser, so never use them for secret keys.
@@ -29,56 +29,88 @@ export default function Home() {
   // A ref is a persistent container; .current holds the actual microphone stream.
   // MediaStream | null means a stream or nothing yet.
   // Changing .current does not trigger a render, but the container survives renders.
+  const peerConnection = useRef<RTCPeerConnection | null>(null)
   const localStream = useRef<MediaStream | null>(null);
   //add ref to see if component is moounte
   const permission = useRef(true)
-  useEffect(() => { 
+  useEffect(() => {
     permission.current = true
-    return () => { 
+    return () => {
       permission.current = false
-      if (localStream.current) { 
+      if (localStream.current) {
         localStream.current.getTracks().forEach(track => track.stop())
         localStream.current = null;
       }
+      if (peerConnection.current) {
+        peerConnection.current.close()
+        peerConnection.current = null
+      }
 
-      
+
+
     };
   }, []);
   // React calls this handler when the user clicks the microphone Start button.
   async function startButton() {
 
-    
-    if (micStatus !== "idle") return; 
+
+    if (micStatus !== "idle") return;
     setMicStatus("requesting")
     try {
       // navigator is a browser API. Request microphone audio, without camera video.
       // await waits for permission/device access without blocking the browser UI.
       // Save the stream so the Stop handler can access its tracks later.
-const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // This logs the ref container in browser developer tools, not on the page.
       // Log localStream.current to inspect just the actual stream.
       console.log("Microphone access granted:", localStream);
 
       if (!permission.current) {
-   stream.getTracks().forEach((track) => track.stop());
-    return;
+        stream.getTracks().forEach((track) => track.stop());
+        return;
       }
 
 
-      localStream.current = stream
 
-      // TODO: mark the mic active and display success on the page.
+
+
+
+      localStream.current = stream
+      const pc = new RTCPeerConnection();
+      peerConnection.current = pc;
+
+
+
+      stream.getAudioTracks().forEach((track) => {
+        pc.addTrack(track, stream)
+      });
+
+      const offer = await pc.createOffer()
+      if (!permission.current) return 
+      await pc.setLocalDescription(offer)
+      if (!permission.current) return
+      console.log(offer.type)
+      console.log(offer.sdp)
+      console.log("SON")
       setMicStatus("active")
       setMessage("Success")
       // This code does not record a file or send audio to our Python backend.
     } catch (error) {
-      if (!permission.current) return; 
+      
       // Permission denial or  an unavailable device can land here.
-      // TODO: show the error on the page as well as in the developer console.
+      if (localStream.current) {
+        localStream.current.getTracks().forEach(track => track.stop())
+        localStream.current = null
+      }
+      peerConnection.current?.close()
+      peerConnection.current = null
+
+if (!permission.current) return;
       setMessage("Could not access the microphone. Check microphone permission")
       setMicStatus("idle")
       console.log("error: " + error);
     }
+
     // TODO: prevent another Start while permission is pending or a stream is active.
     // Otherwise the ref can be overwritten while an earlier stream keeps running.
   }
@@ -91,18 +123,24 @@ const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // stop() ends a track and releases this stream's use of the microphone.
       localStream.current.getTracks().forEach((track) => {
         track.stop();
+
       });
-
-      // Forget the stopped stream. Clearing the ref alone would not stop its tracks.
-      localStream.current = null;
-
-      // Update the shared status paragraph and schedule a React render.
-      setMessage("Microphone stopped.");
-      // TODO: reset micStatus to "idle" when you implement its transitions.
-      setMicStatus("idle")
     }
+
+    if (peerConnection.current) {
+      peerConnection.current?.close();
+      peerConnection.current = null;
+    }
+    // Forget the stopped stream. Clearing the ref alone would not stop its tracks.
+    localStream.current = null;
+
+    // Update the shared status paragraph and schedule a React render.
+    setMessage("Microphone stopped.");
+    // TODO: reset micStatus to "idle" when you implement its transitions.
+    setMicStatus("idle")
   }
-  
+
+
 
 
   // Despite its original name, this handler now requests your /greeting endpoint.
@@ -162,9 +200,9 @@ const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
       {/* startButton() below is visible text because it is outside curly braces. */}
       {/* TODO: choose readable labels and use micStatus to disable these buttons. */}
-      <button onClick={startButton} 
-      disabled={micStatus === "requesting" || micStatus === "active"}>
-       
+      <button onClick={startButton}
+        disabled={micStatus === "requesting" || micStatus === "active"}>
+
         Start Microphone
       </button>
 
