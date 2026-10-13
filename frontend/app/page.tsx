@@ -31,10 +31,14 @@ export default function Home() {
   // Changing .current does not trigger a render, but the container survives renders.
   const peerConnection = useRef<RTCPeerConnection | null>(null)
   const localStream = useRef<MediaStream | null>(null);
+  // audioRef is used for the audio element to play the remote audio stream from the peer connection.
+  const audioRef = useRef<HTMLAudioElement | null>(null)
   //add ref to see if component is moounte
   const permission = useRef(true)
   useEffect(() => {
     permission.current = true
+    // Keep this element available to cleanup even after React clears the ref.
+    const audioElement = audioRef.current;
     return () => {
       permission.current = false
       if (localStream.current) {
@@ -45,9 +49,10 @@ export default function Home() {
         peerConnection.current.close()
         peerConnection.current = null
       }
-
-
-
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.srcObject = null;
+      }
     };
   }, []);
   // React calls this handler when the user clicks the microphone Start button.
@@ -76,15 +81,34 @@ export default function Home() {
 
 
       localStream.current = stream
-      const pc = new RTCPeerConnection();
+      const pc = new RTCPeerConnection()
+      pc.ontrack = (event) => {
+        if (!permission.current || !audioRef.current) return;
+        // A remote track may arrive without an associated stream.
+        audioRef.current.srcObject =
+          event.streams[0] ?? new MediaStream([event.track]);
+      };
+
       peerConnection.current = pc;
 
+    
 
 
       stream.getAudioTracks().forEach((track) => {
         pc.addTrack(track, stream)
       });
+      const dc = pc.createDataChannel("oai-events")
 
+      dc.addEventListener("message", (event) => {
+      if (!permission.current) return
+      // log message
+      console.log("message", event.data)
+      })
+
+      dc.addEventListener("open", () => {
+        if (!permission.current) return
+        console.log("data channel open")
+      })
       const offer = await pc.createOffer()
       if (!permission.current) return
       await pc.setLocalDescription(offer)
@@ -134,6 +158,11 @@ export default function Home() {
       peerConnection.current?.close()
       peerConnection.current = null
 
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.srcObject = null;
+      }
+
       if (!permission.current) return;
       setMessage("Could not access the microphone. Check microphone permission")
       setMicStatus("idle")
@@ -162,6 +191,11 @@ export default function Home() {
     }
     // Forget the stopped stream. Clearing the ref alone would not stop its tracks.
     localStream.current = null;
+
+    if (audioRef.current) {
+      audioRef.current.srcObject = null;
+      audioRef.current.pause();
+    }
 
     // Update the shared status paragraph and schedule a React render.
     setMessage("Microphone stopped.");
@@ -239,6 +273,8 @@ export default function Home() {
         disabled={micStatus !== "active"}>
         Stop Microphone
       </button>
+
+      <audio ref={audioRef} autoPlay controls />
 
       {/* Both features currently write to this shared message. */}
       {/* The accessibility attributes help screen readers announce status updates. */}
