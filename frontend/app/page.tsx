@@ -91,9 +91,6 @@ export default function Home() {
 
       peerConnection.current = pc;
 
-    
-
-
       stream.getAudioTracks().forEach((track) => {
         pc.addTrack(track, stream)
       });
@@ -108,6 +105,8 @@ export default function Home() {
       dc.addEventListener("open", () => {
         if (!permission.current) return
         console.log("data channel open")
+        setMessage("Microphone active. Speak now.")
+
       })
       const offer = await pc.createOffer()
       if (!permission.current) return
@@ -135,22 +134,26 @@ export default function Home() {
       console.log(offer.type);
       console.log(offer.sdp);
 
+      // Reject an unexpected response before applying the remote description.
+      // String length is a number property, so it is read without parentheses.
       if (
-        typeof data?.message !== "string" ||
-        typeof data?.sdp_length !== "number"
+        data?.type !== "answer" ||
+        typeof data?.sdp !== "string" ||
+        data.sdp.trim().length === 0
       ) {
         throw new Error("Invalid session response");
       }
 
-      setMicStatus("active");
-      setMessage(`${data.message} — SDP length: ${data.sdp_length}`);
+      setMessage("Connecting...")
+      await pc.setRemoteDescription({ type: "answer", sdp: data.sdp })
 
-      // This code does not record a file or send audio to our Python backend.
+      if (!permission.current) return;
+      setMicStatus("active")
     } catch (error) {
 
       
 
-      // Permission denial or  an unavailable device can land here.
+      // Microphone, HTTP, and WebRTC setup errors all reach this cleanup.
       if (localStream.current) {
         localStream.current.getTracks().forEach(track => track.stop())
         localStream.current = null
@@ -164,12 +167,12 @@ export default function Home() {
       }
 
       if (!permission.current) return;
-      setMessage("Could not access the microphone. Check microphone permission")
+      const detail = error instanceof Error ? error.message : "Unknown error.";
+      setMessage(`Could not start the session: ${detail}`);
       setMicStatus("idle")
-      console.log("error: " + error);
+      console.error("Session setup failed:", error);
     }
 
-    // TODO: prevent another Start while permission is pending or a stream is active.
     // Otherwise the ref can be overwritten while an earlier stream keeps running.
   }
 
