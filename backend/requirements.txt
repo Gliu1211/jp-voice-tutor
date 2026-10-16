@@ -2,3 +2,6 @@
 fastapi==0.141.1
 # Server that listens for requests and runs the FastAPI app.
 uvicorn==0.53.0
+python-dotenv==1.2.4
+# Official client for authenticated OpenAI API requests.
+openai==3.31.0

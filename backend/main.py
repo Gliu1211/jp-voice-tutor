@@ -1,8 +1,13 @@
 # FastAPI maps HTTP requests to Python functions and builds JSON responses.
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel 
 # Middleware runs around request handling; this one supplies browser CORS headers.
 from fastapi.middleware.cors import CORSMiddleware
+import os 
+from pathlib import Path 
+from dotenv import load_dotenv
+from openai import OpenAI, APIError
+load_dotenv(Path(__file__).with_name(".env"))
 
 # Uvicorn loads this object when you run: python -m uvicorn main:app
 # main is the module (main.py); app is the variable inside it.
@@ -25,9 +30,35 @@ class SessionOffer(BaseModel):
 
 @app.post("/session")
 def session(offer: SessionOffer):
-    return {
-        "message": "Offer received",
-        "sdp_length": len(offer.sdp) }
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException( 
+            status_code=503,
+            detail="OPENAI_API_KEY is not configured",
+    )
+    session_config = {
+    "type": "realtime",
+    "model": "gpt-realtime-2.1-mini",
+    "instructions": (
+        "You are a friendly Japanese tutor. Speak simple Japanese, "
+        "keep replies brief, and ask one question at a time."
+    ),
+    "audio": {"output": {"voice": "marin"}},}
+    try:
+        with OpenAI(api_key=api_key, timeout=15.0, max_retries=0) as client:
+            call = client.realtime.calls.create(
+                sdp=offer.sdp,
+                session=session_config,)
+            answer_sdp = call.read().decode("utf-8")
+    except APIError:
+        raise HTTPException(status_code=502, detail="Could not create voice session")
+    
+    return {"type": "answer", "sdp": answer_sdp}
+
+    
+    
+    
 
 # The decorator registers health() as the handler for GET /health.
 @app.get("/health")
