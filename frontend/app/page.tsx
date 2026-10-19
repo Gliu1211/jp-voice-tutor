@@ -9,12 +9,18 @@ import { useState, useRef, useEffect } from "react";
 // NEXT_PUBLIC_ values are visible in the browser, so never use them for secret keys.
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
+interface transcript {
+  id: string;
+  text: string;
+}
+
 // Next.js uses app/page.tsx as the page for the root URL (/).
 // React calls this function again when state changes to describe the updated UI.
 export default function Home() {
   // useState returns [the current value, a function that updates that value].
   // setMessage schedules a render so the status paragraph shows new text.
   const [message, setMessage] = useState("Ready to check the backend.");
+  const [transcripts, setTranscripts] = useState<transcript[]>([]);
 
   // This loading flag belongs to the greeting HTTP request.
   const [isLoading, setIsLoading] = useState(false);
@@ -75,11 +81,6 @@ export default function Home() {
         return;
       }
 
-
-
-
-
-
       localStream.current = stream
       const pc = new RTCPeerConnection()
       pc.ontrack = (event) => {
@@ -97,9 +98,21 @@ export default function Home() {
       const dc = pc.createDataChannel("oai-events")
 
       dc.addEventListener("message", (event) => {
-      if (!permission.current) return
-      // log message
-      console.log("message", event.data)
+        if (!permission.current) return
+        // log message
+        const parse = JSON.parse(event.data)
+        // add transcript to the transcripts state
+        // using ... to spread the previous transcripts and add the new one
+
+        if (parse.type === "response.output_audio_transcript.done") {
+
+          setTranscripts((prevTranscripts) => [
+            ...prevTranscripts,
+            { id: parse.item_id, text: parse.transcript }
+          ])
+        }
+
+        console.log("message", event.data)
       })
 
       dc.addEventListener("open", () => {
@@ -151,7 +164,7 @@ export default function Home() {
       setMicStatus("active")
     } catch (error) {
 
-      
+
 
       // Microphone, HTTP, and WebRTC setup errors all reach this cleanup.
       if (localStream.current) {
@@ -252,6 +265,8 @@ export default function Home() {
     }
   }
 
+
+
   // JSX describes the page. Curly braces insert JavaScript values/expressions.
   return (
     <main>
@@ -276,6 +291,12 @@ export default function Home() {
         disabled={micStatus !== "active"}>
         Stop Microphone
       </button>
+      {/*map is like the for i in array from python, use to render elements*/}
+      <div>
+        {transcripts.map((transcripts) => (
+          <p key={transcripts.id}>{transcripts.text}</p>
+        ))}
+      </div>
 
       <audio ref={audioRef} autoPlay controls />
 
