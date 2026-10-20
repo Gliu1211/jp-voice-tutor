@@ -38,13 +38,23 @@ def session(offer: SessionOffer):
             detail="OPENAI_API_KEY is not configured",
     )
     session_config = {
-    "type": "realtime",
-    "model": "gpt-realtime-2.1-mini",
-    "instructions": (
-        "You are a friendly Japanese tutor. Speak simple Japanese, "
-        "keep replies brief, and ask one question at a time."
-    ),
-    "audio": {"output": {"voice": "marin"}},}
+        "type": "realtime",
+        "model": "gpt-realtime-2.1-mini",
+        "instructions": (
+            "You are a friendly Japanese tutor. Speak simple Japanese, "
+            "keep replies brief, and ask one question at a time."
+        ),
+        "audio": {
+            "input": {
+                "transcription": {
+                    "model": "gpt-4o-mini-transcribe"
+                }
+            },
+            "output": {
+                "voice": "marin"
+            }
+        },
+    }
     try:
         with OpenAI(api_key=api_key, timeout=15.0, max_retries=0) as client:
             call = client.realtime.calls.create(
@@ -56,7 +66,6 @@ def session(offer: SessionOffer):
     
     return {"type": "answer", "sdp": answer_sdp}
 
-    
     
     
 

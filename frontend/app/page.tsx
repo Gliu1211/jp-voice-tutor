@@ -112,6 +112,11 @@ export default function Home() {
           ])
         }
 
+        if (parse.type === "conversation.item.input_audio_transcription.completed") {
+          console.log("id:", parse.item_id)
+          console.log("transcript:", parse.transcript)
+        }
+
         console.log("message", event.data)
       })
 
