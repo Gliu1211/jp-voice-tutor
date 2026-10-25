@@ -16,6 +16,14 @@ interface transcript {
   role: "user" | "assistant"; 
 }
 
+interface ConversationSession {
+  session_id: string; 
+  start_time: string;
+  end_time: string | null; 
+  transcripts: transcript[];
+  session_status: "active" | "complete";
+}
+
 // Next.js uses app/page.tsx as the page for the root URL (/).
 // React calls this function again when state changes to describe the updated UI.
 export default function Home() {
@@ -23,6 +31,7 @@ export default function Home() {
   // setMessage schedules a render so the status paragraph shows new text.
   const [message, setMessage] = useState("Ready to check the backend.");
   const [transcripts, setTranscripts] = useState<transcript[]>([]);
+  const [sessions, setSessions] = useState<ConversationSession[]>([]);
 
   // This loading flag belongs to the greeting HTTP request.
   const [isLoading, setIsLoading] = useState(false);
@@ -33,6 +42,8 @@ export default function Home() {
   const [micStatus, setMicStatus] = useState<
     "idle" | "requesting" | "active"
   >("idle");
+
+
 
 
 
@@ -132,7 +143,18 @@ export default function Home() {
         console.log("data channel open")
         setMessage("Microphone active. Speak now.")
 
+        const session: ConversationSession = {
+          session_id: crypto.randomUUID(),
+          start_time: new Date().toISOString(),
+          end_time: null,
+          transcripts: [],
+          session_status: "active"  
+        }
+        setSessions((prevSessions) => [...prevSessions, session])
       })
+       
+        
+      
       const offer = await pc.createOffer()
       if (!permission.current) return
       await pc.setLocalDescription(offer)
@@ -175,6 +197,8 @@ export default function Home() {
       await pc.setRemoteDescription({ type: "answer", sdp: data.sdp })
 
       if (!permission.current) return;
+
+      
       setMicStatus("active")
     } catch (error) {
 
