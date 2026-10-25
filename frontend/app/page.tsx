@@ -9,9 +9,11 @@ import { useState, useRef, useEffect } from "react";
 // NEXT_PUBLIC_ values are visible in the browser, so never use them for secret keys.
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
+// this transcript is used to store information about transcript object from openai.
 interface transcript {
   id: string;
   text: string;
+  role: "user" | "assistant"; 
 }
 
 // Next.js uses app/page.tsx as the page for the root URL (/).
@@ -31,6 +33,8 @@ export default function Home() {
   const [micStatus, setMicStatus] = useState<
     "idle" | "requesting" | "active"
   >("idle");
+
+
 
   // A ref is a persistent container; .current holds the actual microphone stream.
   // MediaStream | null means a stream or nothing yet.
@@ -104,18 +108,21 @@ export default function Home() {
         // add transcript to the transcripts state
         // using ... to spread the previous transcripts and add the new one
 
+        // response.output_audio_transcript.done is the event type for the final transcript of the audio response
+        // this is the event type for the response of the voice model 
         if (parse.type === "response.output_audio_transcript.done") {
 
           setTranscripts((prevTranscripts) => [
             ...prevTranscripts,
-            { id: parse.item_id, text: parse.transcript }
+            { id: parse.item_id, text: parse.transcript, role: "assistant"}
           ])
         }
-
+        // this is the event type for the final transcript of the user input audio 
         if (parse.type === "conversation.item.input_audio_transcription.completed") {
-          console.log("id:", parse.item_id)
-          console.log("transcript:", parse.transcript)
-        }
+          setTranscripts((prevTranscripts) => [
+            ...prevTranscripts, 
+            { id: parse.item_id, text: parse.transcript, role: "user"}
+        ])}
 
         console.log("message", event.data)
       })
@@ -131,6 +138,8 @@ export default function Home() {
       await pc.setLocalDescription(offer)
       if (!permission.current) return
 
+
+      // response consists of a JSON object with the answer SDP from the backend. SDP is a text format that describes the media capabilities of the peer connection.
       const response = await fetch(`${apiUrl}/session`, {
 
         method: "POST",
@@ -205,7 +214,7 @@ export default function Home() {
 
       });
     }
-
+    // peerConnection is a ref to the RTCPeerConnection object. If it exists, close it and clear the ref.
     if (peerConnection.current) {
       peerConnection.current?.close();
       peerConnection.current = null;
@@ -299,7 +308,7 @@ export default function Home() {
       {/*map is like the for i in array from python, use to render elements*/}
       <div>
         {transcripts.map((transcripts) => (
-          <p key={transcripts.id}>{transcripts.text}</p>
+          <p key={transcripts.id}>{transcripts.role === "user" ? `You:  ${transcripts.text}` : `Tutor: ${transcripts.text}`}</p>
         ))}
       </div>
 
