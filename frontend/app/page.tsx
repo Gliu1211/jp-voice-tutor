@@ -14,6 +14,7 @@ interface transcript {
   id: string;
   text: string;
   role: "user" | "assistant";
+  session_id : string; 
 }
 
 interface ConversationSession {
@@ -91,6 +92,8 @@ export default function Home() {
       // Log localStream.current to inspect just the actual stream.
       console.log("Microphone access granted:", localStream);
 
+      const session_id = crypto.randomUUID()
+
       if (!permission.current) {
         stream.getTracks().forEach((track) => track.stop());
         return;
@@ -125,34 +128,86 @@ export default function Home() {
 
           setTranscripts((prevTranscripts) => [
             ...prevTranscripts,
-            { id: parse.item_id, text: parse.transcript, role: "assistant" }
+            { id: parse.item_id, text: parse.transcript, role: "assistant", session_id: session_id }
           ])
+          // Update only the matching session; map keeps the other sessions unchanged.
+          setSessions((prevSessions) =>
+            prevSessions.map((session) => {
+              if (session.session_id === session_id) {
+                return {
+                  // Copy the existing session, then replace its transcripts with a new array.
+                  ...session,
+                  transcripts: [
+                    // Preserve earlier transcripts and append this assistant transcript.
+                    ...session.transcripts,
+                    {
+                      id: parse.item_id,
+                      text: parse.transcript,
+                      role: "assistant",
+                      session_id,
+                    },
+                  ],
+                };
+              } else {
+                return session;
+              }
+            })
+          );
         }
+
         // this is the event type for the final transcript of the user input audio 
         if (parse.type === "conversation.item.input_audio_transcription.completed") {
           setTranscripts((prevTranscripts) => [
             ...prevTranscripts,
-            { id: parse.item_id, text: parse.transcript, role: "user" }
+            {
+              id: parse.item_id,
+              text: parse.transcript,
+              role: "user",
+              session_id,
+            },
           ])
+          setSessions((prevSessions) =>
+            prevSessions.map((session) => {
+              if (session.session_id === session_id) {
+                return {
+                  ...session,
+                  transcripts: [
+                    ...session.transcripts,
+                    {
+                      id: parse.item_id,
+                      text: parse.transcript,
+                      role: "user",
+                      session_id,
+                    },
+                  ],
+                };
+              } else {
+                return session;
+              }
+            })
+          );
         }
 
         console.log("message", event.data)
-      })
+      });
 
       dc.addEventListener("open", () => {
         if (!permission.current) return
         console.log("data channel open")
         setMessage("Microphone active. Speak now.")
-
         const session: ConversationSession = {
-          session_id: crypto.randomUUID(),
+          session_id: session_id,
           start_time: new Date().toISOString(),
           end_time: null,
           transcripts: [],
           session_status: "active"
         }
         setSessions((prevSessions) => [...prevSessions, session])
+
+ 
       })
+
+
 
 
 
