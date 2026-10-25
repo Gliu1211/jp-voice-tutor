@@ -13,13 +13,13 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 interface transcript {
   id: string;
   text: string;
-  role: "user" | "assistant"; 
+  role: "user" | "assistant";
 }
 
 interface ConversationSession {
-  session_id: string; 
+  session_id: string;
   start_time: string;
-  end_time: string | null; 
+  end_time: string | null;
   transcripts: transcript[];
   session_status: "active" | "complete";
 }
@@ -125,15 +125,16 @@ export default function Home() {
 
           setTranscripts((prevTranscripts) => [
             ...prevTranscripts,
-            { id: parse.item_id, text: parse.transcript, role: "assistant"}
+            { id: parse.item_id, text: parse.transcript, role: "assistant" }
           ])
         }
         // this is the event type for the final transcript of the user input audio 
         if (parse.type === "conversation.item.input_audio_transcription.completed") {
           setTranscripts((prevTranscripts) => [
-            ...prevTranscripts, 
-            { id: parse.item_id, text: parse.transcript, role: "user"}
-        ])}
+            ...prevTranscripts,
+            { id: parse.item_id, text: parse.transcript, role: "user" }
+          ])
+        }
 
         console.log("message", event.data)
       })
@@ -148,13 +149,13 @@ export default function Home() {
           start_time: new Date().toISOString(),
           end_time: null,
           transcripts: [],
-          session_status: "active"  
+          session_status: "active"
         }
         setSessions((prevSessions) => [...prevSessions, session])
       })
-       
-        
-      
+
+
+
       const offer = await pc.createOffer()
       if (!permission.current) return
       await pc.setLocalDescription(offer)
@@ -198,7 +199,7 @@ export default function Home() {
 
       if (!permission.current) return;
 
-      
+
       setMicStatus("active")
     } catch (error) {
 
@@ -250,6 +251,21 @@ export default function Home() {
       audioRef.current.srcObject = null;
       audioRef.current.pause();
     }
+    // update the session status to complete, update end time
+    setSessions((prevSessions) =>
+      prevSessions.map((session) => {
+        if (session.session_status === "active") {
+        const endTime = new Date().toISOString();
+        return {
+          ...session,
+          session_status: "complete",
+          end_time: endTime,
+        }
+      } else {
+        return session;
+        }
+      })
+    );
 
     // Update the shared status paragraph and schedule a React render.
     setMessage("Microphone stopped.");
