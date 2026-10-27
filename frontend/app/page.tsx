@@ -31,7 +31,6 @@ export default function Home() {
   // useState returns [the current value, a function that updates that value].
   // setMessage schedules a render so the status paragraph shows new text.
   const [message, setMessage] = useState("Ready to check the backend.");
-  const [transcripts, setTranscripts] = useState<transcript[]>([]);
   const [sessions, setSessions] = useState<ConversationSession[]>([]);
 
   // This loading flag belongs to the greeting HTTP request.
@@ -119,17 +118,10 @@ export default function Home() {
         if (!permission.current) return
         // log message
         const parse = JSON.parse(event.data)
-        // add transcript to the transcripts state
-        // using ... to spread the previous transcripts and add the new one
 
         // response.output_audio_transcript.done is the event type for the final transcript of the audio response
         // this is the event type for the response of the voice model 
         if (parse.type === "response.output_audio_transcript.done") {
-
-          setTranscripts((prevTranscripts) => [
-            ...prevTranscripts,
-            { id: parse.item_id, text: parse.transcript, role: "assistant", session_id: session_id }
-          ])
           // Update only the matching session; map keeps the other sessions unchanged.
           setSessions((prevSessions) =>
             prevSessions.map((session) => {
@@ -157,15 +149,6 @@ export default function Home() {
 
         // this is the event type for the final transcript of the user input audio 
         if (parse.type === "conversation.item.input_audio_transcription.completed") {
-          setTranscripts((prevTranscripts) => [
-            ...prevTranscripts,
-            {
-              id: parse.item_id,
-              text: parse.transcript,
-              role: "user",
-              session_id,
-            },
-          ])
           setSessions((prevSessions) =>
             prevSessions.map((session) => {
               if (session.session_id === session_id) {
@@ -307,10 +290,11 @@ export default function Home() {
       audioRef.current.pause();
     }
     // update the session status to complete, update end time
+    const endTime = new Date().toISOString();
+
     setSessions((prevSessions) =>
       prevSessions.map((session) => {
         if (session.session_status === "active") {
-        const endTime = new Date().toISOString();
         return {
           ...session,
           session_status: "complete",
@@ -402,8 +386,21 @@ export default function Home() {
       </button>
       {/*map is like the for i in array from python, use to render elements*/}
       <div>
-        {transcripts.map((transcripts) => (
-          <p key={transcripts.id}>{transcripts.role === "user" ? `You:  ${transcripts.text}` : `Tutor: ${transcripts.text}`}</p>
+
+        {sessions.map((session) => (
+          <div key={session.session_id}>
+            <h2>Session {session.session_id}</h2>
+            <p>Start Time: {session.start_time}</p>
+            <p>End Time: {session.end_time ?? "In Progress"}</p>
+
+            <div>
+              {session.transcripts.map((entry) => (
+                <p key={entry.id}>
+                  Role: {entry.role} text: {entry.text}
+                </p>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
 
