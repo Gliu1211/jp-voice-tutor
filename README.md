@@ -1,9 +1,9 @@
 # Japanese Voice Trainer
 
-Current progress: a Next.js + TypeScript page calls Python + FastAPI for a Japanese
-greeting. Browser microphone Start/Stop handlers include status, button guards,
-error feedback, and cleanup when the component is removed. There is no AI connection, audio recording/transmission,
-database, or learner model yet.
+Current progress: the browser connects to OpenAI Realtime through a FastAPI SDP
+exchange, plays tutor audio, and groups learner/tutor transcripts into sessions in
+browser memory. Transcript text and ordering metadata are merged by item ID, and
+messages are displayed by predecessor links. There is no database or learner model yet.
 
 Read [the current code walkthrough](CODE_WALKTHROUGH.md) alongside the explanatory
 comments in the source. It maps each file to its role and describes both button flows.
@@ -155,6 +155,12 @@ but their transitive dependencies are not fully locked yet, an MVP simplificatio
 From `frontend`, run `npm.cmd run build` and `npm.cmd run typecheck` to check
 compilation and types. To inspect the actual integration, use your browser's
 Network panel, click the button, and inspect the `/greeting` request and JSON response.
+
+From `frontend`, `npm.cmd test` checks transcript merging and ordering without a
+microphone or API call. These tests use Node's built-in TypeScript loading and need
+Node.js 22.18+; this machine uses Node.js 24. They cover delayed metadata/text,
+repeated events, missing links, and state immutability. They do not verify live
+audio quality or whether Stop captures the last spoken words.
 
 - If `/health` does not open directly, check the backend terminal first.
 - If `/health` opens but the page fails, check the browser console for CORS and

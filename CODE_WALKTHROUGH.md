@@ -47,10 +47,11 @@ The allowed origin in Python permits the browser page to read the API response.
 ## Starting and stopping the microphone
 
 Start calls the browser's `getUserMedia` API and waits for microphone access.
-It saves the resulting `MediaStream` in `localStream.current`. This handler does
-not call Python, save an audio file, or establish a voice-model connection.
-Start success/failure is displayed in a dedicated microphone status paragraph.
-Greeting responses use a separate paragraph, so they cannot overwrite mic feedback.
+It saves the resulting `MediaStream` in `localStream.current`, adds its tracks to
+a WebRTC peer connection, and sends the SDP offer to Python's `/session` endpoint.
+Python makes the authenticated OpenAI call and returns the SDP answer. The browser
+plays remote tutor audio and receives conversation events over the data channel.
+Greeting and microphone setup feedback currently share a status paragraph.
 
 Stop gets the saved stream's tracks, calls `stop()` on each one, clears the reference,
 and displays Microphone stopped. Clearing the reference without stopping the tracks
@@ -71,7 +72,7 @@ requesting -> idle on failure. Stop changes active -> idle. Start is enabled onl
 while idle; Stop is enabled only while active.
 
 `useEffect` registers a cleanup function that stops any retained microphone tracks
-when the component is removed. `isMounted.current` remembers whether the component
+when the component is removed. `permission.current` remembers whether the component
 is still present. If microphone permission finishes after removal, the Start handler
 stops the returned stream immediately instead of keeping an orphaned microphone active.
 The effect's empty dependency array means greeting/status updates do not rerun it.
@@ -103,10 +104,25 @@ installed/generated files. They are not extra features you have to implement.
 
 ## Current checkpoint
 
-The greeting request, microphone state transitions, button guards, visible feedback,
-and component-removal cleanup are implemented. You wrote the status transitions and
-button guards; Codex added cleanup, late-result handling, and separate microphone feedback.
-There is no AI, transcript, audio recording/transmission, database, or learner model yet.
+Voice conversations and learner/tutor transcripts are grouped into sessions in browser
+memory. Transcript entries are stored in a dictionary keyed by item ID.
+There is no database, analyzer, or learner model yet.
+
+The October 27 ordering implementation was written by Codex. Its functions live in
+`frontend/lib/transcripts.ts`, with focused tests in `transcripts.test.cjs`:
+
+- `mergeTranscriptEvent` combines ordering metadata and completed text by item ID.
+  Metadata arriving later preserves existing text; repeated events reuse the same key.
+- `previous_item_id: undefined` means ordering metadata has not arrived. `null` means
+  the item is at the start of the conversation. They are different states.
+- `orderTranscripts` derives a predecessor-to-successors lookup and walks from the root.
+  Items with missing ancestors stay stored and pending until their links arrive.
+  Non-message items retain their links but are skipped in the visible transcript.
+- `text: null` means transcription is pending; an empty completed string is preserved.
+
+The page renders this derived order instead of relying on object insertion order.
+These changes do not address final-audio draining when Stop immediately closes WebRTC,
+or later features for editing/inserting/deleting conversation items.
 
 Before adding another feature, trace this path through the commented source:
 **Greetings click -> request -> Python function -> JSON -> React state -> status paragraph.**

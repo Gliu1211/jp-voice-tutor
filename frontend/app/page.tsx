@@ -4,24 +4,17 @@
 
 // Hooks let React retain values when it calls Home() again to update the page.
 import { useState, useRef, useEffect } from "react";
+import { mergeTranscriptEvent, orderTranscripts, type TranscriptEntries } from "../lib/transcripts";
 
 // Next.js loads this public backend address from frontend/.env.local.
 // NEXT_PUBLIC_ values are visible in the browser, so never use them for secret keys.
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
-// this transcript is used to store information about transcript object from openai.
-interface transcript {
-  id: string;
-  text: string;
-  role: "user" | "assistant";
-  session_id : string; 
-}
-
 interface ConversationSession {
   session_id: string;
   start_time: string;
   end_time: string | null;
-  transcripts: transcript[];
+  transcripts: TranscriptEntries;
   session_status: "active" | "complete";
 }
 
@@ -38,10 +31,10 @@ export default function Home() {
 
   // Hooks must be inside a React component (or custom hook), before its return.
   // The TypeScript union permits only these strings; "idle" is the initial value.
-  // TODO (your exercise): this state is declared but not yet updated or displayed.
   const [micStatus, setMicStatus] = useState<
     "idle" | "requesting" | "active"
   >("idle");
+
 
 
 
@@ -115,63 +108,27 @@ export default function Home() {
       const dc = pc.createDataChannel("oai-events")
 
       dc.addEventListener("message", (event) => {
-        if (!permission.current) return
-        // log message
-        const parse = JSON.parse(event.data)
+        if (!permission.current) return;
 
-        // response.output_audio_transcript.done is the event type for the final transcript of the audio response
-        // this is the event type for the response of the voice model 
-        if (parse.type === "response.output_audio_transcript.done") {
-          // Update only the matching session; map keeps the other sessions unchanged.
-          setSessions((prevSessions) =>
-            prevSessions.map((session) => {
-              if (session.session_id === session_id) {
-                return {
-                  // Copy the existing session, then replace its transcripts with a new array.
-                  ...session,
-                  transcripts: [
-                    // Preserve earlier transcripts and append this assistant transcript.
-                    ...session.transcripts,
-                    {
-                      id: parse.item_id,
-                      text: parse.transcript,
-                      role: "assistant",
-                      session_id,
-                    },
-                  ],
-                };
-              } else {
-                return session;
-              }
-            })
-          );
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(event.data);
+        } catch {
+          console.warn("Ignored a Realtime message with invalid JSON.");
+          return;
         }
 
-        // this is the event type for the final transcript of the user input audio 
-        if (parse.type === "conversation.item.input_audio_transcription.completed") {
-          setSessions((prevSessions) =>
-            prevSessions.map((session) => {
-              if (session.session_id === session_id) {
-                return {
-                  ...session,
-                  transcripts: [
-                    ...session.transcripts,
-                    {
-                      id: parse.item_id,
-                      text: parse.transcript,
-                      role: "user",
-                      session_id,
-                    },
-                  ],
-                };
-              } else {
-                return session;
-              }
-            })
-          );
-        }
-
-        console.log("message", event.data)
+        setSessions((previousSessions) => {
+          let changed = false;
+          const nextSessions = previousSessions.map((session) => {
+            if (session.session_id !== session_id) return session;
+            const transcripts = mergeTranscriptEvent(session.transcripts, parsed, session_id);
+            if (transcripts === session.transcripts) return session;
+            changed = true;
+            return { ...session, transcripts };
+          });
+          return changed ? nextSessions : previousSessions;
+        });
       });
 
       dc.addEventListener("open", () => {
@@ -182,7 +139,7 @@ export default function Home() {
           session_id: session_id,
           start_time: new Date().toISOString(),
           end_time: null,
-          transcripts: [],
+          transcripts: {},
           session_status: "active"
         }
         setSessions((prevSessions) => [...prevSessions, session])
@@ -387,21 +344,31 @@ export default function Home() {
       {/*map is like the for i in array from python, use to render elements*/}
       <div>
 
-        {sessions.map((session) => (
+        {sessions.map((session) => {
+          const orderedEntries = orderTranscripts(session.transcripts);
+          const visibleCount = Object.values(session.transcripts).filter(
+            (entry) => entry.role !== null,
+          ).length;
+          const pendingCount = visibleCount - orderedEntries.length;
+          return (
           <div key={session.session_id}>
             <h2>Session {session.session_id}</h2>
             <p>Start Time: {session.start_time}</p>
             <p>End Time: {session.end_time ?? "In Progress"}</p>
 
             <div>
-              {session.transcripts.map((entry) => (
+              {orderedEntries.map((entry) => (
                 <p key={entry.id}>
-                  Role: {entry.role} text: {entry.text}
+                  {entry.role === "user" ? "You" : "Tutor"}: {entry.text ?? "Waiting for transcript…"}
                 </p>
               ))}
+              {pendingCount > 0 && (
+                <p role="status">{pendingCount} message(s) waiting for conversation details…</p>
+              )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <audio ref={audioRef} autoPlay controls />
