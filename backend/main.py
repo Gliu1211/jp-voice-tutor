@@ -7,11 +7,47 @@ import os
 from pathlib import Path 
 from dotenv import load_dotenv
 from openai import OpenAI, APIError
+from typing import Literal
 load_dotenv(Path(__file__).with_name(".env"))
 
 # Uvicorn loads this object when you run: python -m uvicorn main:app
 # main is the module (main.py); app is the variable inside it.
 app = FastAPI(title="Japanese Voice Trainer")
+
+
+class GrammarCorrection(BaseModel): 
+    utter_id: str
+    correction: str
+    original: str
+    explanation: str
+    category: str
+
+class SessionAnalysis(BaseModel): 
+    session_id: str 
+    correction_list: list[GrammarCorrection]
+    
+class Utterance(BaseModel):
+    utter_id: str 
+    role: Literal["user", "assistant"]
+    text: str
+class AnalysisRequest(BaseModel): 
+    session_id: str 
+    utterances: list[Utterance]
+
+
+example = GrammarCorrection(utter_id="123", correction="blah", original="blah", explanation="blah", category="particle")
+example2 = SessionAnalysis(session_id="123", correction_list=[])
+exampleCorrection = SessionAnalysis(session_id="67", correction_list=[example])
+exampleAnalysisRequest = AnalysisRequest(session_id="son", utterances=[   {
+      "utter_id": "item_1",
+      "role": "assistant",
+      "text": "どこで勉強しますか？"
+    },
+    {
+      "utter_id": "item_2",
+      "role": "user",
+      "text": "図書館に勉強します。"
+    }])
 
 # An origin includes protocol, hostname, and port. The page and API differ.
 # Allow browser JavaScript from localhost:3000 to read our API responses.
@@ -66,8 +102,12 @@ def session(offer: SessionOffer):
     
     return {"type": "answer", "sdp": answer_sdp}
 
+@app.post("/analyze", response_model=SessionAnalysis)
+def analyze(Analysis: AnalysisRequest):
+    example = SessionAnalysis(session_id= Analysis.session_id, correction_list=[])
     
     
+    return example
 
 # The decorator registers health() as the handler for GET /health.
 @app.get("/health")
