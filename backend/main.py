@@ -103,11 +103,39 @@ def session(offer: SessionOffer):
     return {"type": "answer", "sdp": answer_sdp}
 
 @app.post("/analyze", response_model=SessionAnalysis)
-def analyze(Analysis: AnalysisRequest):
-    example = SessionAnalysis(session_id= Analysis.session_id, correction_list=[])
-    
-    
-    return example
+def analyze(request: AnalysisRequest):
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured")
+
+    # Turn the utterances into readable lines, keeping utter_id so the
+    # model can say which line each correction belongs to.
+    transcript = "\n".join(
+        f"[{u.utter_id}] {u.role}: {u.text}" for u in request.utterances
+    )
+
+    try:
+        with OpenAI(api_key=api_key, timeout=30.0) as client:
+            response = client.responses.parse(
+                model="gpt-5.4-mini",
+                instructions=(
+                    "You are a Japanese teacher. Review ONLY the lines spoken by 'user'. "
+                    "For each grammar mistake, return the utter_id, the original sentence, "
+                    "the corrected sentence, a short English explanation, and a category "
+                    "such as 'particle', 'conjugation', or 'word choice'. "
+                    "If there are no mistakes, return an empty correction_list."
+                ),
+                input=f"Session ID: {request.session_id}\n\n{transcript}",
+                text_format=SessionAnalysis,
+            )
+    except APIError:
+        raise HTTPException(status_code=502, detail="Analysis failed")
+
+    result = response.output_parsed
+    if result is None:  # the model refused, or produced no parseable answer
+        raise HTTPException(status_code=502, detail="No analysis returned")
+
+    return result
 
 # The decorator registers health() as the handler for GET /health.
 @app.get("/health")
