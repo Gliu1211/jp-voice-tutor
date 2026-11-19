@@ -83,7 +83,7 @@ def session(offer: SessionOffer):
         "audio": {
             "input": {
                 "transcription": {
-                    "model": "gpt-4o-mini-transcribe"
+                    "model": "gpt-4o-live-transcribe"
                 }
             },
             "output": {
@@ -124,6 +124,8 @@ def analyze(request: AnalysisRequest):
                     "the corrected sentence, a short English explanation, and a category "
                     "such as 'particle', 'conjugation', or 'word choice'. "
                     "If there are no mistakes, return an empty correction_list."
+                    "Use assistant lines as context for interpreting the learner's answers. "
+                    "Copy the session_id and each corrected line's utter_id exactly. "
                 ),
                 input=f"Session ID: {request.session_id}\n\n{transcript}",
                 text_format=SessionAnalysis,

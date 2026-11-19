@@ -18,6 +18,18 @@ interface ConversationSession {
   end_time: string | null;         // null while the session is still running.
   transcripts: TranscriptEntries;  // Keyed by item ID; see lib/transcripts.ts for merge/order logic.
   session_status: "active" | "complete";
+  analysis: SessionAnalysis | null
+}
+interface GrammarCorrection {
+  utter_id: string;               // The transcript entry ID that was corrected.
+  correction: string;         // The corrected Japanese sentence.
+  original: string;
+  explanation: string;            // A short English explanation of the mistake.
+  category: string;               // "particle", "conjugation", "word choice", etc.
+}
+interface SessionAnalysis {
+  session_id: string;             // Copied from the request.
+  correction_list: GrammarCorrection[];  // Empty if no mistakes were found.
 }
 
 // Next.js uses app/page.tsx as the page for the root URL (/).
@@ -169,11 +181,12 @@ export default function Home() {
           start_time: new Date().toISOString(),
           end_time: null,
           transcripts: {},
-          session_status: "active"
+          session_status: "active",
+          analysis: null
         }
         setSessions((prevSessions) => [...prevSessions, session])
 
- 
+
       })
 
 
@@ -291,13 +304,13 @@ export default function Home() {
     setSessions((prevSessions) =>
       prevSessions.map((session) => {
         if (session.session_status === "active") {
-        return {
-          ...session,
-          session_status: "complete",
-          end_time: endTime,
-        }
-      } else {
-        return session;
+          return {
+            ...session,
+            session_status: "complete",
+            end_time: endTime,
+          }
+        } else {
+          return session;
         }
       })
     );
@@ -308,7 +321,38 @@ export default function Home() {
     setMicStatus("idle")
   }
 
+  async function analyzeSession(session: ConversationSession) {
+    try {
+      const orderedTranscripts = orderTranscripts(session.transcripts);
+      const utterances = orderedTranscripts.filter((entry) => entry.text != null).map((entry) => ({
+        utter_id: entry.id,
+        role: entry.role,
+        text: entry.text,
+      }))
 
+      const response = await fetch(`${apiUrl}/analyze`, {
+        method: "POST", headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ session_id: session.session_id, utterances: utterances })
+      })
+      if (!response.ok) {
+        throw new Error(`POST failed ${response.status}`)
+      }
+      const data: SessionAnalysis = await response.json();
+      setSessions((prevSessions) =>
+        prevSessions.map((s) => {
+          if (s.session_id === session.session_id) {
+            return { ...s, analysis: data };
+          }
+          return s;
+        })
+      );
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown error.";
+      setMessage(`Analysis failed: ${detail}`);
+    }
+  }
 
 
   // Despite its original name, this handler now requests your /greeting endpoint.
@@ -392,22 +436,42 @@ export default function Home() {
           // ...minus those already ordered = entries still waiting for ordering info.
           const pendingCount = visibleCount - orderedEntries.length;
           return (
-          <div key={session.session_id}>
-            <h2>Session {session.session_id}</h2>
-            <p>Start Time: {session.start_time}</p>
-            <p>End Time: {session.end_time ?? "In Progress"}</p>
+            <div key={session.session_id}>
+              <h2>Session {session.session_id}</h2>
+              <p>Start Time: {session.start_time}</p>
+              <p>End Time: {session.end_time ?? "In Progress"}</p>
 
-            <div>
-              {orderedEntries.map((entry) => (
-                <p key={entry.id}>
-                  {entry.role === "user" ? "You" : "Tutor"}: {entry.text ?? "Waiting for transcript…"}
-                </p>
-              ))}
-              {pendingCount > 0 && (
-                <p role="status">{pendingCount} message(s) waiting for conversation details…</p>
+              <div>
+                {orderedEntries.map((entry) => (
+                  <p key={entry.id}>
+                    {entry.role === "user" ? "You" : "Tutor"}: {entry.text ?? "Waiting for transcript…"}
+                  </p>
+                ))}
+                {pendingCount > 0 && (
+                  <p role="status">{pendingCount} message(s) waiting for conversation details…</p>
+                )}
+              </div>
+              <button
+                onClick={() => analyzeSession(session)}
+                disabled={session.session_status !== "complete" || session.analysis !== null}
+              >
+                Analyze Session
+
+              </button>
+
+              {session.analysis && (
+                <div>
+                  {session.analysis.correction_list.map((c) => (
+                    <div key={c.utter_id}>
+                      <p>Original: {c.original}</p>
+                      <p>Correction: {c.correction}</p>
+                      <p>Explanation: {c.explanation}</p>
+                    </div>
+                  ))}
+
+                </div>
               )}
             </div>
-          </div>
           );
         })}
       </div>
